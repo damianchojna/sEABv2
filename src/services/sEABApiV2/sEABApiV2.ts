@@ -140,7 +140,7 @@ export default class sEABApiV2 {
         const re = /^\x0228\.\((.*)\)\x0d\x0a29\.\((.*)\)/
         const matches = dataT.toString().match(re)
 
-        return DateService.getDate(matches[2] + " " + matches[1], "DD-MM-YY HH:mm:ss")
+        return DateService.getDateOriginal(matches[2] + " " + matches[1], "DD-MM-YY HH:mm:ss")
     }
 
     /*
@@ -160,7 +160,6 @@ export default class sEABApiV2 {
 
         const re = /^\x02109\(([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1})/
         const matches = dataQ.toString().match(re)
-        Logger.debug("maches", matches)
         return {
             L1: Number(matches[1] === "-" ? -matches[2] : +matches[2]),
             L2: Number(matches[3] === "-" ? -matches[4] : +matches[2]),
@@ -184,10 +183,10 @@ export default class sEABApiV2 {
         const re = /^\x02107\(([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1})/
         const matches = dataP.toString().match(re)
         return {
-            L1: Number(matches[1] === "-" ? -matches[2] : matches[2]),
-            L2: Number(matches[3] === "-" ? -matches[4] : matches[2]),
-            L3: Number(matches[5] === "-" ? -matches[6] : matches[2]),
-            SUM: Number(matches[7] === "-" ? -matches[8] : matches[8])
+            L1: matches[1] === "-" ? -matches[2] : +matches[2],
+            L2: matches[3] === "-" ? -matches[4] : +matches[2],
+            L3: matches[5] === "-" ? -matches[6] : +matches[2],
+            SUM: matches[7] === "-" ? -matches[8] : +matches[8]
         }
     }
 
@@ -216,17 +215,34 @@ export default class sEABApiV2 {
          y.8.x(nnnnnn.nnnn)[CR][LF] - pośredni
          Gdzie:
             nn...n - wartość energii w kWh lub kvarh.
+            x numer strefy:
+                0 – liczydło sumaryczne,
+                1 – strefa 1,
+                2 – strefa 2,
+                3 – strefa 3,
+                4 – strefa 4;
+            y rodzaj energii i kierunek:
+                0 – P+ (czynna, kierunek pobór),
+                1 – P− (czynna, kierunek oddawanie),
+                2 – Q+ (bierna, kierunek pobór),
+                3 – Q− (bierna, kierunek oddawanie);
      */
-    async energyCounter(): Promise<void> {
+    /**
+     *
+     * @param energyType - P – czynna, Q – bierna;
+     * @param direction  - P – dodatni (pobór), M – ujemny (oddawanie)
+     * @param numberZone - numer strefy od 0..4
+     */
+    async getEnergyCounter(direction: "P" | "M" = "P", energyType: "P" | "Q" = "P", numberZone: number = 0): Promise<number> {
         if (!this.registerMode) await this.startRegisterMode()
 
-        await this.socket.write("\x01" + "R1" + "\x02" + "Eezx()" + "\x03")
+        await this.socket.write("\x01" + "R1" + "\x02" + `E${energyType}${direction}${numberZone}()` + "\x03")
         const energyCounterResponse = await this.socket.recv("\r\n\x03", this.options.timeout)
 
-        const re = /^\x02y\.8\.x\((.*)\)/
+        const re = /^\x02([0-3])\.8\.[0-4]\((.*)\)/
         const matches = energyCounterResponse.toString().match(re)
 
-        //@TODO ....
+        return +matches[2]
     }
 
     /*
@@ -260,7 +276,7 @@ export default class sEABApiV2 {
             29 0d 0a 03 05                                     )[CR][LF][EXT][ENQ jako BCC]
     */
     async startRegisterMode(): Promise<void> {
-        if (!this.connected) await this.connect()
+        if (!this.socket) await this.connect()
         Logger.debug("Register mode starting ")
         await this.socket.write("\x06" + `0${this.B}1` + "\r\n")
         await this.socket.recv("\x03", this.options.timeout) //@TODO control sum
