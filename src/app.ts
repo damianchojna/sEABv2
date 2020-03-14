@@ -9,6 +9,8 @@ import * as Influx from "influx"
 import DateService from "./services/DateService"
 import EnergyCounters from "./models/sequelize/EnergyCounters"
 import sequelize from "./services/Sequelize/sequelize"
+import { Op, literal, QueryTypes } from "sequelize"
+import { where } from "influx"
 ;(async () => {
     try {
         await sequelize.sync()
@@ -40,39 +42,71 @@ import sequelize from "./services/Sequelize/sequelize"
         if (!names.includes("energy")) await influx.createDatabase("energy")
 
         const time = await sEABApi.getTime()
-        Logger.log("Czas na liczniku:", time)
 
         let oldTime = DateService.getNowDate()
         // let energyCounterTime = oldTime
         let toggleOneMeasurePerDay = true
+
         while (true) {
             try {
                 const time = await sEABApi.getTime()
 
-                if (0 == time.getHours() && toggleOneMeasurePerDay) {
-                    const lastEnergyRecord = await EnergyCounters.findOne({
-                        order: [["createdAt", "DESC"]]
-                    })
+                const recordFromPreviousDate = await EnergyCounters.findOne({
+                    where: {
+                        [Op.and]: [
+                            literal(
+                                `DATE(createdAt) = "${time
+                                    .clone()
+                                    .subtract(1, "days")
+                                    .format("YYYY-MM-DD")}"`
+                            )
+                        ]
+                    },
+                    raw: true
+                })
 
-                    const counterCurrentInput = await sEABApi.getEnergyCounter("P")
-                    const counterCurrentOutput = await sEABApi.getEnergyCounter("M")
+                const recordFromToday = await EnergyCounters.findOne({
+                    where: {
+                        [Op.and]: [literal(`DATE(createdAt) = "${time.format("YYYY-MM-DD")}"`)]
+                    }
+                })
 
-                    Logger.log("One Day logger:", time.toISOString())
-                    Logger.log("lastEnergyRecord.counterCurrentInput", lastEnergyRecord.counterCurrentInput)
-                    Logger.log("lastEnergyRecord.counterCurrentInput", lastEnergyRecord.counterCurrentInput)
-                    Logger.log("counterCurrentInput", counterCurrentInput)
-                    Logger.log("counterCurrentOutput", counterCurrentOutput)
+                const counterCurrentInput = await sEABApi.getEnergyCounter("P")
+                const counterCurrentOutput = await sEABApi.getEnergyCounter("M")
 
+                Logger.log("One Day logger:", time.format("YYYY-MM-DD HH:mm:ss"))
+                Logger.log("recordFromPreviousDate", recordFromPreviousDate)
+                Logger.log("recordFromToday", recordFromToday ? recordFromToday.get({ plain: true }) : null)
+                Logger.log("counterCurrentInput", counterCurrentInput)
+                Logger.log("counterCurrentOutput", counterCurrentOutput)
+
+                const calculatedEnergyInput = recordFromPreviousDate ? counterCurrentInput - recordFromPreviousDate.counterCurrentInput : 0
+                const calculatedEnergyOutput = recordFromPreviousDate ? counterCurrentOutput - recordFromPreviousDate.counterCurrentOutput : 0
+
+                if (recordFromToday) {
+                    await sequelize.query(
+                        "UPDATE `counters` SET `counterCurrentInput`=?,`counterCurrentOutput`=?,`energyInput`=?,`energyOutput`=?, `createdAt`=? WHERE `id` = ?",
+                        {
+                            replacements: [
+                                counterCurrentInput,
+                                counterCurrentOutput,
+                                calculatedEnergyInput,
+                                calculatedEnergyOutput,
+                                time.format("YYYY-MM-DD HH:mm:ss"),
+                                recordFromToday.id
+                            ],
+                            type: QueryTypes.UPDATE
+                        }
+                    )
+                } else {
                     await EnergyCounters.create({
                         counterCurrentInput,
                         counterCurrentOutput,
-                        energyInput: lastEnergyRecord ? counterCurrentInput - lastEnergyRecord.counterCurrentInput : 0,
-                        energyOutput: lastEnergyRecord ? counterCurrentOutput - lastEnergyRecord.counterCurrentOutput : 0
+                        energyInput: calculatedEnergyInput,
+                        energyOutput: calculatedEnergyOutput,
+                        createdAt: time.format("YYYY-MM-DD HH:mm:ss")
                     })
-
-                    toggleOneMeasurePerDay = false
                 }
-                if (0 != time.getHours()) toggleOneMeasurePerDay = true
 
                 let energyCounterInput = null
                 let energyCounterOutput = null
@@ -84,7 +118,7 @@ import sequelize from "./services/Sequelize/sequelize"
                 //     energyCounterTime = time
                 // }
 
-                if (oldTime.getTime() !== time.getTime()) {
+                if (oldTime.getTime() !== time.toDate().getTime()) {
                     const power = await sEABApi.getActivePower()
 
                     influx.writePoints([
@@ -93,13 +127,15 @@ import sequelize from "./services/Sequelize/sequelize"
                             measurement: "power",
                             tags: { device: "seab" },
                             fields: {
-                                activePower: power.SUM
+                                activePower: power.SUM,
+                                energyInput: calculatedEnergyIncput,
+                                energyOutput: calculatedEnergyOutput
                             }
                         }
                     ])
-                    Logger.log(`Moc Bierna ${time.toISOString()}:`, power)
+                    Logger.log(`Moc Bierna ${time.format("YYYY-MM-DD HH:mm:ss")}:`, power)
                 }
-                oldTime = time
+                oldTime = time.toDate()
             } catch (e) {
                 Logger.error("Error main app lopp", e)
 

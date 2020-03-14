@@ -13,29 +13,29 @@ class ProfileRepository {
     }
 
     // async getProfileFromTheRange(dateStart: Date, dateEnd = DateService.getNowDate()): Promise<ProfileInterface[]> {
-    //     console.log('getProfileFromTheRange')
+    //     console.log("getProfileFromTheRange")
     //
-    //     console.log('dateStart', dateStart)
-    //     const cycleStartNumber = ProfileService.convertDateToCycleNumber(dateStart);
-    //     console.log('dateEnd', dateEnd)
-    //     const cycleEndNumber = ProfileService.convertDateToCycleNumber(dateEnd);
+    //     console.log("dateStart", dateStart)
+    //     const cycleStartNumber = ProfileService.convertDateToCycleNumber(dateStart)
+    //     console.log("dateEnd", dateEnd)
+    //     const cycleEndNumber = ProfileService.convertDateToCycleNumber(dateEnd)
     //
-    //     let loopIteration = Math.ceil((cycleEndNumber - cycleStartNumber) / ProfileEnum.MAX_PROFILES_CAN_FETCH_DURING_ONE_REQUEST);
+    //     let loopIteration = Math.ceil((cycleEndNumber - cycleStartNumber) / ProfileEnum.MAX_PROFILES_CAN_FETCH_DURING_ONE_REQUEST)
     //
-    //     console.log('cycleStartNumber:', cycleStartNumber)
-    //     console.log('cycleEndNumber:', cycleEndNumber)
-    //     console.log('loopIteration:', loopIteration)
+    //     console.log("cycleStartNumber:", cycleStartNumber)
+    //     console.log("cycleEndNumber:", cycleEndNumber)
+    //     console.log("loopIteration:", loopIteration)
     //
-    //     let cycleStartNumberForLoop = cycleStartNumber;
-    //     let profiles = [];
+    //     let cycleStartNumberForLoop = cycleStartNumber
+    //     let profiles = []
     //
     //     while (loopIteration--) {
-    //         console.log('loopIteration', loopIteration, cycleStartNumberForLoop);
-    //         const profilesChunk = await this.getProfile(cycleStartNumberForLoop);
-    //         cycleStartNumberForLoop+=ProfileEnum.MAX_PROFILES_CAN_FETCH_DURING_ONE_REQUEST;
+    //         console.log("loopIteration", loopIteration, cycleStartNumberForLoop)
+    //         const profilesChunk = await this.getProfile(cycleStartNumberForLoop)
+    //         cycleStartNumberForLoop += ProfileEnum.MAX_PROFILES_CAN_FETCH_DURING_ONE_REQUEST
     //
-    //         console.log(profilesChunk);
-    //         profiles.concat(profilesChunk);
+    //         console.log(profilesChunk)
+    //         profiles.concat(profilesChunk)
     //     }
     //
     //     return profiles

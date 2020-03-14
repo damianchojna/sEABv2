@@ -6,6 +6,7 @@ import DateService from "../DateService"
 import ProfileEnum from "../../domain/Profile/ProfileEnum"
 import ProfileInterface from "../../domain/Profile/model/ProfileInterface"
 import ProfileDto from "../../domain/Profile/ProfileDto"
+import { Moment } from "moment"
 
 export default class sEABApiV2 {
     socket: SocketPromise
@@ -130,7 +131,7 @@ export default class sEABApiV2 {
         return data.toString()
     }
 
-    async getTime(): Promise<Date> {
+    async getTime(): Promise<Moment> {
         //@TODO globalna lista wymagan co do polączen
         if (!this.registerMode) await this.startRegisterMode()
 
@@ -140,7 +141,7 @@ export default class sEABApiV2 {
         const re = /^\x0228\.\((.*)\)\x0d\x0a29\.\((.*)\)/
         const matches = dataT.toString().match(re)
 
-        return DateService.getDateOriginal(matches[2] + " " + matches[1], "DD-MM-YY HH:mm:ss")
+        return DateService.parseDate(matches[2] + " " + matches[1], "DD-MM-YY HH:mm:ss")
     }
 
     /*

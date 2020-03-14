@@ -1,3 +1,5 @@
+import { Moment } from "moment"
+
 const moment = require("moment")
 
 class DateService {
@@ -9,8 +11,8 @@ class DateService {
         return moment.utc(date, format).toDate()
     }
 
-    getDateOriginal(date: Date | string | number, format?: string): Date {
-        return moment(date, format).toDate()
+    parseDate(date: Date | string | number, format?: string): Moment {
+        return moment(date, format)
     }
 
     subtractDate(date: Date | string | number, amount: number, unit = "days"): Date {
