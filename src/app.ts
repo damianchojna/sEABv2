@@ -44,7 +44,7 @@ import { where } from "influx"
         const time = await sEABApi.getTime()
 
         let oldTime = DateService.getNowDate()
-        // let energyCounterTime = oldTime
+        // let energyCountesrTime = oldTime
         let toggleOneMeasurePerDay = true
 
         while (true) {
@@ -99,13 +99,19 @@ import { where } from "influx"
                         }
                     )
                 } else {
-                    await EnergyCounters.create({
-                        counterCurrentInput,
-                        counterCurrentOutput,
-                        energyInput: calculatedEnergyInput,
-                        energyOutput: calculatedEnergyOutput,
-                        createdAt: time.format("YYYY-MM-DD HH:mm:ss")
-                    })
+                    await sequelize.query(
+                        "INSERT INTO `counters` (`id`,`counterCurrentInput`,`counterCurrentOutput`,`energyInput`,`energyOutput`,`createdAt`) VALUES (DEFAULT,?,?,?,?,?)",
+                        {
+                            replacements: [
+                                counterCurrentInput,
+                                counterCurrentOutput,
+                                calculatedEnergyInput,
+                                calculatedEnergyOutput,
+                                time.format("YYYY-MM-DD HH:mm:ss")
+                            ],
+                            type: QueryTypes.INSERT
+                        }
+                    )
                 }
 
                 let energyCounterInput = null
@@ -128,7 +134,7 @@ import { where } from "influx"
                             tags: { device: "seab" },
                             fields: {
                                 activePower: power.SUM,
-                                energyInput: calculatedEnergyIncput,
+                                energyInput: calculatedEnergyInput,
                                 energyOutput: calculatedEnergyOutput
                             }
                         }
