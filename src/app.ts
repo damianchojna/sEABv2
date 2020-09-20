@@ -16,14 +16,16 @@ import { where } from "influx"
         await sequelize.sync()
 
         const sEABApi = new sEABApiV2({
-            ip: "192.168.0.40",
+            ip: "moxa.lh",
             port: 4001,
             timeout: 5000,
             serialNumber: "A523.1016498"
         })
 
         const influx = new Influx.InfluxDB({
-            host: "localhost",
+            host: "nas.lh",
+            username: "iot",
+            password: "iot",
             database: "energy",
             schema: [
                 {
@@ -52,15 +54,9 @@ import { where } from "influx"
                 const time = await sEABApi.getTime()
 
                 const recordFromPreviousDate = await EnergyCounters.findOne({
+                    order: [["createdAt", "DESC"]],
                     where: {
-                        [Op.and]: [
-                            literal(
-                                `DATE(createdAt) = "${time
-                                    .clone()
-                                    .subtract(1, "days")
-                                    .format("YYYY-MM-DD")}"`
-                            )
-                        ]
+                        [Op.and]: [literal(`DATE(createdAt) < "${time.format("YYYY-MM-DD")}"`)]
                     },
                     raw: true
                 })
@@ -74,11 +70,11 @@ import { where } from "influx"
                 const counterCurrentInput = await sEABApi.getEnergyCounter("P")
                 const counterCurrentOutput = await sEABApi.getEnergyCounter("M")
 
-                Logger.log("One Day logger:", time.format("YYYY-MM-DD HH:mm:ss"))
-                Logger.log("recordFromPreviousDate", recordFromPreviousDate)
-                Logger.log("recordFromToday", recordFromToday ? recordFromToday.get({ plain: true }) : null)
-                Logger.log("counterCurrentInput", counterCurrentInput)
-                Logger.log("counterCurrentOutput", counterCurrentOutput)
+                // Logger.log("One Day logger:", time.format("YYYY-MM-DD HH:mm:ss"))
+                // Logger.log("recordFromPreviousDate", recordFromPreviousDate)
+                // Logger.log("recordFromToday", recordFromToday ? recordFromToday.get({ plain: true }) : null)
+                // Logger.log("counterCurrentInput", counterCurrentInput)
+                // Logger.log("counterCurrentOutput", counterCurrentOutput)
 
                 const calculatedEnergyInput = recordFromPreviousDate ? counterCurrentInput - recordFromPreviousDate.counterCurrentInput : 0
                 const calculatedEnergyOutput = recordFromPreviousDate ? counterCurrentOutput - recordFromPreviousDate.counterCurrentOutput : 0
@@ -139,7 +135,7 @@ import { where } from "influx"
                             }
                         }
                     ])
-                    Logger.log(`Moc Bierna ${time.format("YYYY-MM-DD HH:mm:ss")}:`, power)
+                    //Logger.log(`Moc Bierna ${time.format("YYYY-MM-DD HH:mm:ss")}:`, power)
                 }
                 oldTime = time.toDate()
             } catch (e) {

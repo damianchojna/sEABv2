@@ -1,10 +1,11 @@
 import { Sequelize } from "sequelize"
 
-const sequelize = new Sequelize("energy", "energy", "energy", {
-    host: "192.168.0.30",
+const sequelize = new Sequelize("energy", "iot", "iot", {
+    host: "nas.lh",
     dialect: "mysql",
     //operatorsAliases: false,
 
+    logging: false,
     timezone: "+01:00",
 
     pool: {

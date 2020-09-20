@@ -24,7 +24,7 @@ export default class sEABApiV2 {
     async connect(): Promise<void> {
         this.socket = new SocketPromise()
         const { ip, port, timeout, serialNumber } = this.options
-        const milisec: number = await this.socket.conn(ip, port, this.options.timeout)
+        const milisec: number = await this.socket.conn(ip, port, timeout)
         Logger.debug("Czas otwarcia portu TCP:", milisec)
 
         /*
@@ -39,7 +39,7 @@ export default class sEABApiV2 {
                 ttt.nnnnnnn – oznacza numer fabryczny licznika
          */
         await this.socket.write(`/${serialNumber}\r\n`)
-        const sequenceWithMeterAddress = await this.socket.recv("\r\n", this.options.timeout)
+        const sequenceWithMeterAddress = await this.socket.recv("\r\n", timeout)
         Logger.debug("Numer fabryczny licznika:", sequenceWithMeterAddress.toString())
 
         /*
@@ -76,7 +76,7 @@ export default class sEABApiV2 {
                 VP02.09        - vv.vv oznaczenie wersji
          */
         await this.socket.write("/?!\r\n")
-        const softVersion = await this.socket.recv("\r\n", this.options.timeout)
+        const softVersion = await this.socket.recv("\r\n", timeout)
         Logger.debug("Info licznika:", softVersion.toString())
 
         this.B = softVersion.toString().substring(4, 5)
