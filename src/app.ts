@@ -52,15 +52,9 @@ import { where } from "influx"
                 const time = await sEABApi.getTime()
 
                 const recordFromPreviousDate = await EnergyCounters.findOne({
+                    order: [["createdAt", "DESC"]],
                     where: {
-                        [Op.and]: [
-                            literal(
-                                `DATE(createdAt) = "${time
-                                    .clone()
-                                    .subtract(1, "days")
-                                    .format("YYYY-MM-DD")}"`
-                            )
-                        ]
+                        [Op.and]: [literal(`DATE(createdAt) < "${time.format("YYYY-MM-DD")}"`)]
                     },
                     raw: true
                 })
