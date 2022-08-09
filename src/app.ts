@@ -1,7 +1,6 @@
 /*
  *   https://www.pozyton.com.pl/protokoly_transmisji_danych/protokol_transmisji_danych_sEAB_wer_MID_wer_od_02_09_do_02_12.pdf
  */
-import SocketPromise from "socket-promise"
 
 import sEABApiV2 from "./services/sEABApiV2/sEABApiV2"
 import Logger from "./services/Logger/Logger"
@@ -10,7 +9,6 @@ import DateService from "./services/DateService"
 import EnergyCounters from "./models/sequelize/EnergyCounters"
 import sequelize from "./services/Sequelize/sequelize"
 import { Op, literal, QueryTypes } from "sequelize"
-import { where } from "influx"
 ;(async () => {
     try {
         await sequelize.sync()
