@@ -9,15 +9,45 @@ import DateService from "./services/DateService"
 import EnergyCounters from "./models/sequelize/EnergyCounters"
 import sequelize from "./services/Sequelize/sequelize"
 import { Op, literal, QueryTypes } from "sequelize"
+import EnergySolarPanelCounters from "./models/sequelize/EnergySolarPanelCounters";
+
+const configDevice1 = {
+    serialNumber: "A523.1016498",
+    port: 4001,
+    influx: {
+        measurementEnergy: "energy",
+        measurementPower: "power"
+    },
+    mysql: {
+        table: EnergyCounters,
+        tableName: EnergyCounters.tableName
+    }
+}
+
+const configDevice2 = {
+    serialNumber: "A523.1023158",
+    port: 4003,
+    influx: {
+        measurementEnergy: "energySolarPanel",
+        measurementPower: "powerSolarPanel"
+    },
+    mysql: {
+        table: EnergySolarPanelCounters,
+        tableName: EnergySolarPanelCounters.tableName
+    }
+}
+
+const config = configDevice2
+
 ;(async () => {
     try {
         await sequelize.sync()
 
         const sEABApi = new sEABApiV2({
             ip: "moxa.lh",
-            port: 4001,
+            port: config.port,
             timeout: 5000,
-            serialNumber: "A523.1016498"
+            serialNumber: config.serialNumber
         })
 
         const influx = new Influx.InfluxDB({
@@ -27,7 +57,7 @@ import { Op, literal, QueryTypes } from "sequelize"
             database: "energy",
             schema: [
                 {
-                    measurement: "energy",
+                    measurement: config.influx.measurementEnergy,
                     fields: {
                         activePower: Influx.FieldType.FLOAT,
                         energyCounterInput: Influx.FieldType.FLOAT,
@@ -51,7 +81,7 @@ import { Op, literal, QueryTypes } from "sequelize"
             try {
                 const time = await sEABApi.getTime()
 
-                const recordFromPreviousDate = await EnergyCounters.findOne({
+                const recordFromPreviousDate = await config.mysql.table.findOne({
                     order: [["createdAt", "DESC"]],
                     where: {
                         [Op.and]: [literal(`DATE(createdAt) < "${time.format("YYYY-MM-DD")}"`)]
@@ -59,7 +89,7 @@ import { Op, literal, QueryTypes } from "sequelize"
                     raw: true
                 })
 
-                const recordFromToday = await EnergyCounters.findOne({
+                const recordFromToday = await config.mysql.table.findOne({
                     where: {
                         [Op.and]: [literal(`DATE(createdAt) = "${time.format("YYYY-MM-DD")}"`)]
                     }
@@ -79,7 +109,7 @@ import { Op, literal, QueryTypes } from "sequelize"
 
                 if (recordFromToday) {
                     await sequelize.query(
-                        "UPDATE `counters` SET `counterCurrentInput`=?,`counterCurrentOutput`=?,`energyInput`=?,`energyOutput`=?, `createdAt`=? WHERE `id` = ?",
+                        "UPDATE `"+config.mysql.tableName+"` SET `counterCurrentInput`=?,`counterCurrentOutput`=?,`energyInput`=?,`energyOutput`=?, `createdAt`=? WHERE `id` = ?",
                         {
                             replacements: [
                                 counterCurrentInput,
@@ -94,7 +124,7 @@ import { Op, literal, QueryTypes } from "sequelize"
                     )
                 } else {
                     await sequelize.query(
-                        "INSERT INTO `counters` (`id`,`counterCurrentInput`,`counterCurrentOutput`,`energyInput`,`energyOutput`,`createdAt`) VALUES (DEFAULT,?,?,?,?,?)",
+                        "INSERT INTO `"+config.mysql.tableName+"` (`id`,`counterCurrentInput`,`counterCurrentOutput`,`energyInput`,`energyOutput`,`createdAt`) VALUES (DEFAULT,?,?,?,?,?)",
                         {
                             replacements: [
                                 counterCurrentInput,
@@ -124,7 +154,7 @@ import { Op, literal, QueryTypes } from "sequelize"
                     influx.writePoints([
                         {
                             // timestamp: time,
-                            measurement: "power",
+                            measurement: config.influx.measurementPower,
                             tags: { device: "seab" },
                             fields: {
                                 activePower: power.SUM,
