@@ -46,13 +46,22 @@ EnergySolarPanelCounters.init(
             type: DataTypes.DATE,
             allowNull: false,
             defaultValue: Sequelize.literal("CURRENT_TIMESTAMP")
-        }
+        },
+        updatedAt: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            defaultValue: Sequelize.literal("CURRENT_TIMESTAMP")
+        },
+        measurementDate: {
+            type: DataTypes.DATEONLY,
+            allowNull: true,
+        },
     },
     {
         sequelize,
         tableName: "countersSolarPanel",
         createdAt: "createdAt",
-        updatedAt: false
+        updatedAt: "updatedAt"
     }
 )
 

@@ -47,7 +47,7 @@ const configDevice2 = {
     }
 }
 
-const config = configDevice1
+const config = configDevice2
 
 ;(async () => {
     try {
@@ -119,13 +119,14 @@ const config = configDevice1
 
                 if (recordFromToday) {
                     await sequelize.query(
-                        "UPDATE `" + config.mysql.tableName + "` SET `counterCurrentInput`=?,`counterCurrentOutput`=?,`energyInput`=?,`energyOutput`=?, `createdAt`=? WHERE `id` = ?",
+                        "UPDATE `" + config.mysql.tableName + "` SET `counterCurrentInput`=?,`counterCurrentOutput`=?,`energyInput`=?,`energyOutput`=?, `createdAt`=?, `updatedAt`=? WHERE `id` = ?",
                         {
                             replacements: [
                                 counterCurrentInput,
                                 counterCurrentOutput,
                                 calculatedEnergyInput,
                                 calculatedEnergyOutput,
+                                time.format("YYYY-MM-DD HH:mm:ss"),
                                 time.format("YYYY-MM-DD HH:mm:ss"),
                                 recordFromToday.id
                             ],
@@ -134,14 +135,15 @@ const config = configDevice1
                     )
                 } else {
                     await sequelize.query(
-                        "INSERT INTO `" + config.mysql.tableName + "` (`id`,`counterCurrentInput`,`counterCurrentOutput`,`energyInput`,`energyOutput`,`createdAt`) VALUES (DEFAULT,?,?,?,?,?)",
+                        "INSERT INTO `" + config.mysql.tableName + "` (`id`,`counterCurrentInput`,`counterCurrentOutput`,`energyInput`,`energyOutput`,`createdAt`, `measurementDate`) VALUES (DEFAULT,?,?,?,?,?,?)",
                         {
                             replacements: [
                                 counterCurrentInput,
                                 counterCurrentOutput,
                                 calculatedEnergyInput,
                                 calculatedEnergyOutput,
-                                time.format("YYYY-MM-DD HH:mm:ss")
+                                time.format("YYYY-MM-DD HH:mm:ss"),
+                                time.format("YYYY-MM-DD")
                             ],
                             type: QueryTypes.INSERT
                         }
