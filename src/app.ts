@@ -8,15 +8,20 @@ import * as Influx from "influx"
 import DateService from "./services/DateService"
 import EnergyCounters from "./models/sequelize/EnergyCounters"
 import sequelize from "./services/Sequelize/sequelize"
-import { Op, literal, QueryTypes } from "sequelize"
+import {Op, literal, QueryTypes} from "sequelize"
 import EnergySolarPanelCounters from "./models/sequelize/EnergySolarPanelCounters";
 
 const configDevice1 = {
     serialNumber: "A523.1016498",
     port: 4001,
     influx: {
-        measurementEnergy: "energy",
-        measurementPower: "power"
+        fields: {
+            activePower: "activePower",
+            energyCounterInput: "energyCounterInput",
+            energyCounterOutput: "energyCounterOutput",
+            energyInput: "energyInput" ,
+            energyOutput: "energyOutput"
+        }
     },
     mysql: {
         table: EnergyCounters,
@@ -28,8 +33,13 @@ const configDevice2 = {
     serialNumber: "A523.1023158",
     port: 4003,
     influx: {
-        measurementEnergy: "energySolarPanel",
-        measurementPower: "powerSolarPanel"
+        fields: {
+            activePower: "activePowerSolarPanel",
+            energyCounterInput: "energyCounterInputSolarPanel",
+            energyCounterOutput: "energyCounterOutputSolarPanel",
+            energyInput: "energyInputSolarPanel" ,
+            energyOutput: "energyOutputSolarPanel"
+        }
     },
     mysql: {
         table: EnergySolarPanelCounters,
@@ -37,7 +47,7 @@ const configDevice2 = {
     }
 }
 
-const config = configDevice2
+const config = configDevice1
 
 ;(async () => {
     try {
@@ -57,11 +67,11 @@ const config = configDevice2
             database: "energy",
             schema: [
                 {
-                    measurement: config.influx.measurementEnergy,
+                    measurement: "energy",
                     fields: {
-                        activePower: Influx.FieldType.FLOAT,
-                        energyCounterInput: Influx.FieldType.FLOAT,
-                        energyCounterOutput: Influx.FieldType.FLOAT
+                        [config.influx.fields.activePower]: Influx.FieldType.FLOAT,
+                        [config.influx.fields.energyCounterInput]: Influx.FieldType.FLOAT,
+                        [config.influx.fields.energyCounterOutput]: Influx.FieldType.FLOAT,
                     },
                     tags: ["device"]
                 }
@@ -109,7 +119,7 @@ const config = configDevice2
 
                 if (recordFromToday) {
                     await sequelize.query(
-                        "UPDATE `"+config.mysql.tableName+"` SET `counterCurrentInput`=?,`counterCurrentOutput`=?,`energyInput`=?,`energyOutput`=?, `createdAt`=? WHERE `id` = ?",
+                        "UPDATE `" + config.mysql.tableName + "` SET `counterCurrentInput`=?,`counterCurrentOutput`=?,`energyInput`=?,`energyOutput`=?, `createdAt`=? WHERE `id` = ?",
                         {
                             replacements: [
                                 counterCurrentInput,
@@ -124,7 +134,7 @@ const config = configDevice2
                     )
                 } else {
                     await sequelize.query(
-                        "INSERT INTO `"+config.mysql.tableName+"` (`id`,`counterCurrentInput`,`counterCurrentOutput`,`energyInput`,`energyOutput`,`createdAt`) VALUES (DEFAULT,?,?,?,?,?)",
+                        "INSERT INTO `" + config.mysql.tableName + "` (`id`,`counterCurrentInput`,`counterCurrentOutput`,`energyInput`,`energyOutput`,`createdAt`) VALUES (DEFAULT,?,?,?,?,?)",
                         {
                             replacements: [
                                 counterCurrentInput,
@@ -154,12 +164,12 @@ const config = configDevice2
                     influx.writePoints([
                         {
                             // timestamp: time,
-                            measurement: config.influx.measurementPower,
-                            tags: { device: "seab" },
+                            measurement: "power",
+                            tags: {device: "seab"},
                             fields: {
-                                activePower: power.SUM,
-                                energyInput: calculatedEnergyInput,
-                                energyOutput: calculatedEnergyOutput
+                                [config.influx.fields.activePower]: power.SUM,
+                                [config.influx.fields.energyInput]: calculatedEnergyInput,
+                                [config.influx.fields.energyOutput]: calculatedEnergyOutput
                             }
                         }
                     ])
