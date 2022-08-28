@@ -47,7 +47,7 @@ const configDevice2 = {
     }
 }
 
-const config = configDevice2
+const config = configDevice1
 
 ;(async () => {
     try {
