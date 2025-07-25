@@ -20,7 +20,10 @@ const configDevice1 = {
             energyCounterInput: "energyCounterInput",
             energyCounterOutput: "energyCounterOutput",
             energyInput: "energyInput" ,
-            energyOutput: "energyOutput"
+            energyOutput: "energyOutput",
+            voltageL1: "voltageL1",
+            voltageL2: "voltageL2",
+            voltageL3: "voltageL3"
         }
     },
     mysql: {
@@ -38,7 +41,10 @@ const configDevice2 = {
             energyCounterInput: "energyCounterInputSolarPanel",
             energyCounterOutput: "energyCounterOutputSolarPanel",
             energyInput: "energyInputSolarPanel" ,
-            energyOutput: "energyOutputSolarPanel"
+            energyOutput: "energyOutputSolarPanel",
+            voltageL1: "voltageL1Solar5kw",
+            voltageL2: "voltageL2Solar5kw",
+            voltageL3: "voltageL3Solar5kw"
         }
     },
     mysql: {
@@ -72,6 +78,9 @@ const config = configDevice1
                         [config.influx.fields.activePower]: Influx.FieldType.FLOAT,
                         [config.influx.fields.energyCounterInput]: Influx.FieldType.FLOAT,
                         [config.influx.fields.energyCounterOutput]: Influx.FieldType.FLOAT,
+                        [config.influx.fields.voltageL1]: Influx.FieldType.FLOAT,
+                        [config.influx.fields.voltageL2]: Influx.FieldType.FLOAT,
+                        [config.influx.fields.voltageL3]: Influx.FieldType.FLOAT,
                     },
                     tags: ["device"]
                 }
@@ -107,6 +116,7 @@ const config = configDevice1
 
                 const counterCurrentInput = await sEABApi.getEnergyCounter("P")
                 const counterCurrentOutput = await sEABApi.getEnergyCounter("M")
+                const phaseVoltages = await sEABApi.getPhaseVoltage()
 
                 // Logger.log("One Day logger:", time.format("YYYY-MM-DD HH:mm:ss"))
                 // Logger.log("recordFromPreviousDate", recordFromPreviousDate)
@@ -129,6 +139,7 @@ const config = configDevice1
                                 time.format("YYYY-MM-DD HH:mm:ss"),
                                 time.format("YYYY-MM-DD HH:mm:ss"),
                                 recordFromToday.id
+
                             ],
                             type: QueryTypes.UPDATE
                         }
@@ -171,7 +182,11 @@ const config = configDevice1
                             fields: {
                                 [config.influx.fields.activePower]: power.SUM,
                                 [config.influx.fields.energyInput]: calculatedEnergyInput,
-                                [config.influx.fields.energyOutput]: calculatedEnergyOutput
+                                [config.influx.fields.energyOutput]: calculatedEnergyOutput,
+                                [config.influx.fields.voltageL1]: phaseVoltages.L1,
+                                [config.influx.fields.voltageL2]: phaseVoltages.L2,
+                                [config.influx.fields.voltageL3]: phaseVoltages.L3,
+
                             }
                         }
                     ])

@@ -6,7 +6,7 @@ import DateService from "../DateService"
 import ProfileEnum from "../../domain/Profile/ProfileEnum"
 import ProfileInterface from "../../domain/Profile/model/ProfileInterface"
 import ProfileDto from "../../domain/Profile/ProfileDto"
-import { Moment } from "moment"
+import {Moment} from "moment"
 
 export default class sEABApiV2 {
     socket: SocketPromise
@@ -23,7 +23,7 @@ export default class sEABApiV2 {
 
     async connect(): Promise<void> {
         this.socket = new SocketPromise()
-        const { ip, port, timeout, serialNumber } = this.options
+        const {ip, port, timeout, serialNumber} = this.options
         const milisec: number = await this.socket.conn(ip, port, timeout)
         Logger.debug("Czas otwarcia portu TCP:", milisec)
 
@@ -188,6 +188,48 @@ export default class sEABApiV2 {
             L2: matches[3] === "-" ? -matches[4] : +matches[2],
             L3: matches[5] === "-" ? -matches[6] : +matches[2],
             SUM: matches[7] === "-" ? -matches[8] : +matches[8]
+        }
+    }
+
+    /*
+      Napięcie fazowe
+     */
+    async getPhaseVoltage(): Promise<{
+        L1: number
+        L2: number
+        L3: number
+        S1: boolean
+        S2: boolean
+        S3: boolean
+        W : 0 | 1 | 'x'
+    }> {
+        await this.socket.write("\x01" + "R1" + "\x02" + "U()" + "\x03")
+        const dataU = await this.socket.recv("\r\n\x03", this.options.timeout)
+
+        /*
+            97.5.6(uuu.uu;uuu.uu;uuu.uu;s;s;s;w)[CR][LF]
+
+            uuu.uu wartość napięcia fazowego w V (kolejno L1, L2, L3);
+            s sygnalizacja przekroczenia progu obecności fazy (kolejno L1, L2, L3):
+            1 – napięcie fazowe wyższe od zadanego progu,
+            0 – napięcie fazowe niższe od zadanego progu; w sygnalizacja kolejności wirowania faz:
+            1 – kolejność faz prawidłowa,
+            0 – kolejność faz nieprawidłowa,
+            x – nie można ustalić kolejności faz.
+         */
+        const re = /^\x0297\.5\.6\((\d{1,3}\.\d{2});(\d{1,3}\.\d{2});(\d{1,3}\.\d{2});([01]);([01]);([01]);([01x])\)/;
+        const match = dataU.toString().match(re);
+
+        const [_, L1, L2, L3, S1, S2, S3, W] = match;
+
+        return {
+            L1: +L1, //napięcie L3
+            L2: +L2, //napięcie L3
+            L3: +L3, //napięcie L3
+            S1: !!S1, // sygnalizacja obecności fazy L1
+            S2: !!S2, //sygnalizacja obecności fazy L2
+            S3: !!S3, //kolejność wirowania faz
+            W //kolejność wirowania faz
         }
     }
 
