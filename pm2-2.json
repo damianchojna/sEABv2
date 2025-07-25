@@ -1,0 +1,14 @@
+[
+    {
+        "name": "seabv2-2",
+        "env": {},
+        "args": "",
+        "script": "./dist/app.js",
+        "interpreter_args": "",
+        "log_date_format": "YYYY-MM-DD HH:mm Z",
+        "min_uptime": 0,
+        "max_restarts": 0,
+        "restart_delay": 1000,
+        "max_memory_restart": "256M"
+    }
+]
