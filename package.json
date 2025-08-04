@@ -13,6 +13,7 @@
         "@types/chalk": "^2.2.0",
         "@types/node": "^12.12.14",
         "chalk": "^3.0.0",
+        "commander": "^9.5.0",
         "influx": "^5.5.1",
         "jsmodbus": "^4.0.0",
         "lodash": "^4.17.15",

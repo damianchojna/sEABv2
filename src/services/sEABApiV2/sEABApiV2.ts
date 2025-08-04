@@ -120,26 +120,31 @@ export default class sEABApiV2 {
         }
     }
 
-    async getStandardDataSet() {
+    async getStandardDataSet(addChecksum) {
         if (this.registerMode) {
             await this.disconnect()
             await this.connect()
         }
 
-        await this.socket.write("\x06" + `0${this.B}4` + "\r\n")
+        const command = "\x06" + `0${this.B}4` + "\r\n"
+        await this.socket.write(addChecksum ? this.addBccCheckSum(command) : command)
         const data = await this.socket.recv("!\r\n\x03", this.options.timeout)
         return data.toString()
     }
 
-    async getTime(): Promise<Moment> {
+    async getTime(addCheckSum: boolean = false): Promise<Moment> {
         //@TODO globalna lista wymagan co do polączen
         if (!this.registerMode) await this.startRegisterMode()
 
-        await this.socket.write("\x01" + "R1" + "\x02" + "T()" + "\x03")
+        const command = "\x01" + "R1" + "\x02" + "T()" + "\x03"
+
+        await this.socket.write(addCheckSum ? this.addBccCheckSum(command) : command)
         const dataT = await this.socket.recv("\r\n\x03", this.options.timeout)
 
         const re = /^\x0228\.\((.*)\)\x0d\x0a29\.\((.*)\)/
         const matches = dataT.toString().match(re)
+
+
 
         return DateService.parseDate(matches[2] + " " + matches[1], "DD-MM-YY HH:mm:ss")
     }
@@ -172,29 +177,42 @@ export default class sEABApiV2 {
     /*
       Moc Czynna
      */
-    async getActivePower(): Promise<{
+    async getActivePower(addCheckSum: boolean = false): Promise<{
         L1: number
         L2: number
         L3: number
         SUM: number
     }> {
-        await this.socket.write("\x01" + "R1" + "\x02" + "P()" + "\x03")
+        const command = "\x01" + "R1" + "\x02" + "P()" + "\x03"
+        await this.socket.write(addCheckSum ? this.addBccCheckSum(command) : command)
         const dataP = await this.socket.recv("\r\n\x03", this.options.timeout)
 
-        const re = /^\x02107\(([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1});([- ]{1})([0-9]{3}\.[0-9]{1})/
-        const matches = dataP.toString().match(re)
-        return {
-            L1: matches[1] === "-" ? -matches[2] : +matches[2],
-            L2: matches[3] === "-" ? -matches[4] : +matches[2],
-            L3: matches[5] === "-" ? -matches[6] : +matches[2],
-            SUM: matches[7] === "-" ? -matches[8] : +matches[8]
+        const response = dataP.toString().replace(/^\x02107\(/, "").replace(/\)\r?\n?.*$/, "")
+        const values = response.split(";").map(v => parseFloat(v.trim()))
+
+        if (values.length === 5) {
+            // Nowy firmware – L1, L2, L3, sumImport, sumExport
+            const [L1, L2, L3, sumImport, sumExport] = values
+
+            return {
+                L1,
+                L2,
+                L3,
+                SUM: +(sumImport - sumExport).toFixed(2)
+            }
+        } else if (values.length === 4) {
+            // Stary firmware – L1, L2, L3, SUM
+            const [L1, L2, L3, SUM] = values
+            return { L1, L2, L3, SUM }
+        } else {
+            throw new Error("Nieoczekiwany format odpowiedzi z licznika")
         }
     }
 
     /*
       Napięcie fazowe
      */
-    async getPhaseVoltage(): Promise<{
+    async getPhaseVoltage(addCheckSum: boolean = false): Promise<{
         L1: number
         L2: number
         L3: number
@@ -203,7 +221,8 @@ export default class sEABApiV2 {
         S3: boolean
         W : 0 | 1 | 'x'
     }> {
-        await this.socket.write("\x01" + "R1" + "\x02" + "U()" + "\x03")
+        const command = "\x01" + "R1" + "\x02" + "U()" + "\x03"
+        await this.socket.write(addCheckSum ? this.addBccCheckSum(command) : command)
         const dataU = await this.socket.recv("\r\n\x03", this.options.timeout)
 
         /*
@@ -276,10 +295,11 @@ export default class sEABApiV2 {
      * @param direction  - P – dodatni (pobór), M – ujemny (oddawanie)
      * @param numberZone - numer strefy od 0..4
      */
-    async getEnergyCounter(direction: "P" | "M" = "P", energyType: "P" | "Q" = "P", numberZone: number = 0): Promise<number> {
+    async getEnergyCounter(direction: "P" | "M" = "P", energyType: "P" | "Q" = "P", numberZone: number = 0, addChecksum?: boolean): Promise<number> {
         if (!this.registerMode) await this.startRegisterMode()
 
-        await this.socket.write("\x01" + "R1" + "\x02" + `E${energyType}${direction}${numberZone}()` + "\x03")
+        const command = "\x01" + "R1" + "\x02" + `E${energyType}${direction}${numberZone}()` + "\x03"
+        await this.socket.write(addChecksum ? this.addBccCheckSum(command) : command)
         const energyCounterResponse = await this.socket.recv("\r\n\x03", this.options.timeout)
 
         const re = /^\x02([0-3])\.8\.[0-4]\((.*)\)/
@@ -291,9 +311,9 @@ export default class sEABApiV2 {
     /*
        Wybór trybu rejestrowego:
 
-       Request:  [ACK]0B1[CR][LF]                  - urządzenie odczytowe wysyla sekwencję ustalenia trybu pracy
+       Request:  [ACK]0B1[CR][LF]                  - urządzenie odczytowe wysyła sekwencję ustalenia trybu pracy
          Response: [SOH]P0[STX](0000)[ETX][BCC]    - licznik odpowiada sekwencja żądania autoryzacyjnego
-       Request:  [SOH]P1[STX]()[ETX][BCC]          - urządzenie odczytowe wysyla sekwencje
+       Request:  [SOH]P1[STX]()[ETX][BCC]          - urządzenie odczytowe wysyła sekwencje
          Response: [ACK]                           - licznik odpowiada znakiem [ACK] gotowy jest na przyjęcie rozkazów trybu rejestrowego
        Request:  [SOH]R1[STX]kod_rozkazu[ETX]      - rozkaz
          Response: [STX]dane[ETX][BCC]             - licznik zwraca odpowiedz z danymi

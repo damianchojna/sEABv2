@@ -7,19 +7,22 @@ import Logger from "./services/Logger/Logger"
 import * as Influx from "influx"
 import DateService from "./services/DateService"
 import EnergyCounters from "./models/sequelize/EnergyCounters"
+import EnergySolarPanelCounters from "./models/sequelize/EnergySolarPanelCounters";
+import EnergySolarPanelCounters9kw from "./models/sequelize/EnergySolarPanelCounters9kw";
 import sequelize from "./services/Sequelize/sequelize"
 import {Op, literal, QueryTypes} from "sequelize"
-import EnergySolarPanelCounters from "./models/sequelize/EnergySolarPanelCounters";
+import {Command} from 'commander';
 
 const configDevice1 = {
     serialNumber: "A523.1016498",
     port: 4001,
+    addCheckSum: false,
     influx: {
         fields: {
             activePower: "activePower",
             energyCounterInput: "energyCounterInput",
             energyCounterOutput: "energyCounterOutput",
-            energyInput: "energyInput" ,
+            energyInput: "energyInput",
             energyOutput: "energyOutput",
             voltageL1: "voltageL1",
             voltageL2: "voltageL2",
@@ -35,12 +38,13 @@ const configDevice1 = {
 const configDevice2 = {
     serialNumber: "A523.1023158",
     port: 4003,
+    addCheckSum: false,
     influx: {
         fields: {
             activePower: "activePowerSolarPanel",
             energyCounterInput: "energyCounterInputSolarPanel",
             energyCounterOutput: "energyCounterOutputSolarPanel",
-            energyInput: "energyInputSolarPanel" ,
+            energyInput: "energyInputSolarPanel",
             energyOutput: "energyOutputSolarPanel",
             voltageL1: "voltageL1Solar5kw",
             voltageL2: "voltageL2Solar5kw",
@@ -53,7 +57,38 @@ const configDevice2 = {
     }
 }
 
-const config = configDevice1
+const configDevice3 = {
+    serialNumber: "A00004714",
+    port: 4004,
+    addCheckSum: true,
+    influx: {
+        fields: {
+            activePower: "activePowerSolarPanel9kw",
+            energyCounterInput: "energyCounterInputSolarPanel9kw",
+            energyCounterOutput: "energyCounterOutputSolarPanel9kw",
+            energyInput: "energyInputSolarPanel9kw",
+            energyOutput: "energyOutputSolarPanel9kw",
+            voltageL1: "voltageL1Solar9kw",
+            voltageL2: "voltageL2Solar9kw",
+            voltageL3: "voltageL3Solar9kw"
+        }
+    },
+    mysql: {
+        table: EnergySolarPanelCounters9kw,
+        tableName: EnergySolarPanelCounters9kw.tableName
+    }
+}
+
+
+const program = new Command();
+program
+    .option('--config <number>', 'Numer konfiguracji', (value) => parseInt(value, 10))
+    .parse(process.argv);
+
+const options = program.opts();
+const configMap = [configDevice1, configDevice2, configDevice3];
+const config = configMap[options.config - 1];
+console.log({config})
 
 ;(async () => {
     try {
@@ -90,15 +125,13 @@ const config = configDevice1
         const names = await influx.getDatabaseNames()
         if (!names.includes("energy")) await influx.createDatabase("energy")
 
-        const time = await sEABApi.getTime()
-
         let oldTime = DateService.getNowDate()
         // let energyCountesrTime = oldTime
         let toggleOneMeasurePerDay = true
 
         while (true) {
             try {
-                const time = await sEABApi.getTime()
+                const time = await sEABApi.getTime(config.addCheckSum)
 
                 const recordFromPreviousDate = await config.mysql.table.findOne({
                     order: [["createdAt", "DESC"]],
@@ -114,9 +147,9 @@ const config = configDevice1
                     }
                 })
 
-                const counterCurrentInput = await sEABApi.getEnergyCounter("P")
-                const counterCurrentOutput = await sEABApi.getEnergyCounter("M")
-                const phaseVoltages = await sEABApi.getPhaseVoltage()
+                const counterCurrentInput = await sEABApi.getEnergyCounter("P", "P", 0, config.addCheckSum)
+                const counterCurrentOutput = await sEABApi.getEnergyCounter("M", "P", 0, config.addCheckSum)
+                const phaseVoltages = await sEABApi.getPhaseVoltage(config.addCheckSum)
 
                 // Logger.log("One Day logger:", time.format("YYYY-MM-DD HH:mm:ss"))
                 // Logger.log("recordFromPreviousDate", recordFromPreviousDate)
@@ -172,7 +205,7 @@ const config = configDevice1
                 // }
 
                 if (oldTime.getTime() !== time.toDate().getTime()) {
-                    const power = await sEABApi.getActivePower()
+                    const power = await sEABApi.getActivePower(config.addCheckSum)
 
                     influx.writePoints([
                         {
@@ -190,7 +223,7 @@ const config = configDevice1
                             }
                         }
                     ])
-                    //Logger.log(`Moc Bierna ${time.format("YYYY-MM-DD HH:mm:ss")}:`, power)
+                    // Logger.log(`Moc Bierna ${time.format("YYYY-MM-DD HH:mm:ss")}:`, power)
                 }
                 oldTime = time.toDate()
             } catch (e) {

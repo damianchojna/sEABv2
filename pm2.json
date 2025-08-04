@@ -2,7 +2,7 @@
     {
         "name": "seabv2",
         "env": {},
-        "args": "",
+        "args": "--config=1",
         "script": "./dist/app.js",
         "interpreter_args": "",
         "log_date_format": "YYYY-MM-DD HH:mm Z",

@@ -1,8 +1,8 @@
 [
     {
-        "name": "seabv2-2",
+        "name": "seabv2-9kw",
         "env": {},
-        "args": "--config=2",
+        "args": "--config=3",
         "script": "./dist/app.js",
         "interpreter_args": "",
         "log_date_format": "YYYY-MM-DD HH:mm Z",
